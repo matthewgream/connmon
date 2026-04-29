@@ -27,14 +27,34 @@ $(TARGET): $(TARGET).c $(SOURCES)
 	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c $(LDFLAGS)
 all: $(TARGET)
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(TARGET).armhf
 format:
 	clang-format -i $(TARGET).c include/*.h
 test: $(TARGET)
 	./$(TARGET) --config $(TARGET).$(HOSTNAME).default
 latency:
 	journalctl -u $(TARGET) | analysis/latency.js
-.PHONY: all clean format test lint latency
+DEV_PACKAGES=libmosquitto-dev libcurl4-openssl-dev libjson-c-dev libminiupnpc-dev
+DEV_PACKAGES_ARMHF=$(addsuffix :armhf,$(DEV_PACKAGES))
+install-dev:
+	apt install -y $(DEV_PACKAGES)
+remove-dev:
+	apt purge -y $(DEV_PACKAGES)
+install-dev-armhf:
+	dpkg --add-architecture armhf
+	apt update
+	apt install -y gcc-arm-linux-gnueabihf $(DEV_PACKAGES_ARMHF)
+remove-dev-armhf:
+	apt purge -y gcc-arm-linux-gnueabihf $(DEV_PACKAGES_ARMHF)
+	dpkg --remove-architecture armhf
+	apt update
+
+CROSS_CC_ARMHF=arm-linux-gnueabihf-gcc
+$(TARGET).armhf: $(TARGET).c $(SOURCES)
+	$(CROSS_CC_ARMHF) $(CFLAGS) -o $(TARGET).armhf $(TARGET).c $(LDFLAGS)
+armhf: $(TARGET).armhf
+
+.PHONY: all clean format test lint latency install-dev remove-dev install-dev-armhf remove-dev-armhf armhf
 
 ##
 
