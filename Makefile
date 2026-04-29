@@ -3,14 +3,12 @@
 # sudo apt install libmosquitto-dev libcurl4-openssl-dev libjson-c-dev libminiupnpc-dev
 #
 
-SYSTEM=network
-
 CC=gcc
 CFLAGS_INCLUDE=
 CFLAGS_OPT_COMMON=-Wall -Wextra -Wpedantic -O3 -fstack-protector-strong
-CFLAGS_OPT_STRICT=-Wcast-align -Wcast-qual \
+CFLAGS_OPT_STRICT=\
     -Wstrict-prototypes -Wold-style-definition \
-    -Wcast-align -Wcast-qual -Wconversion \
+    -Wno-cast-align -Wcast-qual -Wconversion \
     -Wfloat-equal -Wformat=2 -Wformat-security \
     -Winit-self -Wjump-misses-init -Wlogical-op -Wmissing-include-dirs \
     -Wnested-externs -Wpointer-arith -Wredundant-decls -Wshadow \
@@ -20,7 +18,7 @@ CFLAGS_OPT_STRICT=-Wcast-align -Wcast-qual \
 CFLAGS=$(CFLAGS_INCLUDE) $(CFLAGS_OPT_COMMON) $(CFLAGS_OPT_STRICT)
 LDFLAGS=-lmosquitto -lcurl -ljson-c -lminiupnpc
 SOURCES=include/http_linux.h include/mqtt_linux.h include/util_linux.h include/config_linux.h
-TARGET = connector
+TARGET = connmon
 HOSTNAME = $(shell hostname)
 
 ##
@@ -35,7 +33,7 @@ format:
 test: $(TARGET)
 	./$(TARGET) --config $(TARGET).$(HOSTNAME).default
 latency:
-	journalctl -u network-connector | analysis/latency.js
+	journalctl -u $(TARGET) | analysis/latency.js
 .PHONY: all clean format test lint latency
 
 ##
@@ -54,12 +52,12 @@ define install_systemd_service
 	systemctl start $(2) || echo "Warning: Failed to start $(2)"
 endef
 install_systemd_service: $(TARGET).service
-	$(call install_systemd_service,$(TARGET),$(SYSTEM)-$(TARGET))
+	$(call install_systemd_service,$(TARGET),$(TARGET))
 install_default: $(TARGET).$(HOSTNAME).default
-	cp $(TARGET).$(HOSTNAME).default $(DEFAULT_DIR)/$(SYSTEM)-$(TARGET)
+	cp $(TARGET).$(HOSTNAME).default $(DEFAULT_DIR)/$(TARGET)
 install_target: $(TARGET)
-	$(call stop_systemd_service,$(SYSTEM)-$(TARGET))
-	cp $(TARGET) $(TARGET_DIR)/$(SYSTEM)-$(TARGET)
+	$(call stop_systemd_service,$(TARGET))
+	cp $(TARGET) $(TARGET_DIR)/$(TARGET)
 install: install_target install_default install_systemd_service
 restart:
 	systemctl restart $(TARGET)

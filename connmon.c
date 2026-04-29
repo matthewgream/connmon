@@ -35,7 +35,7 @@
 // -----------------------------------------------------------------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
-#define CONFIG_FILE_DEFAULT "connector.default"
+#define CONFIG_FILE_DEFAULT "connmon.default"
 
 #define CLOUDFLARE_CHECK_PERIOD_DEFAULT 0
 #define UPNP_CHECK_PERIOD_DEFAULT 0
@@ -43,7 +43,7 @@
 #define HEARTBEAT_PERIOD_DEFAULT 60
 
 #define MQTT_SERVER_DEFAULT ""
-#define MQTT_CLIENT_DEFAULT "connector"
+#define MQTT_CLIENT_DEFAULT "connmon"
 #define MQTT_TOPIC_PREFIX_DEFAULT "system/connection"
 
 #define MAX_UPNP_MAPPINGS 10
