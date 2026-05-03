@@ -20,7 +20,7 @@ LDFLAGS=-lmosquitto -lcurl -ljson-c -lminiupnpc
 SOURCES=include/http_linux.h include/mqtt_linux.h include/util_linux.h include/config_linux.h
 TARGET = connmon
 HOSTNAME = $(shell hostname)
-CFG_SRC := $(if $(wildcard $(TARGET).$(HOSTNAME).cfg),$(TARGET).$(HOSTNAME).cfg,$(TARGET).cfg)
+CFG_SRC := $(if $(wildcard $(TARGET).cfg.$(HOSTNAME)),$(TARGET).cfg.$(HOSTNAME),$(TARGET).cfg)
 
 ##
 
