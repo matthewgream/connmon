@@ -219,7 +219,10 @@ static bool cloudflare_update(char *status_message, size_t status_size) {
     }
 
     char full_dns_name[256];
-    snprintf(full_dns_name, sizeof(full_dns_name), "%s.%s", cloudflare_config.dns_name, zone_name);
+    if (strcmp(cloudflare_config.dns_name, "@") == 0)
+        snprintf(full_dns_name, sizeof(full_dns_name), "%s", zone_name);
+    else
+        snprintf(full_dns_name, sizeof(full_dns_name), "%s.%s", cloudflare_config.dns_name, zone_name);
 
     json_object_put(zone_json);
     free(zone_response);
@@ -278,7 +281,7 @@ static bool cloudflare_update(char *status_message, size_t status_size) {
     }
 
     json_object *update_json = json_object_new_object();
-    json_object_object_add(update_json, "name", json_object_new_string(cloudflare_config.dns_name));
+    json_object_object_add(update_json, "name", json_object_new_string(full_dns_name));
     json_object_object_add(update_json, "type", json_object_new_string("A"));
     json_object_object_add(update_json, "content", json_object_new_string(public_ip));
     json_object_object_add(update_json, "proxied", json_object_new_boolean(false));
