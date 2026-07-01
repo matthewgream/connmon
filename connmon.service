@@ -1,5 +1,5 @@
 [Unit]
-Description=connmon — connection monitor
+Description=connmon - connection monitor
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
