@@ -23,8 +23,8 @@
 #include "include/util_linux.h"
 
 #define MQTT_CONNECT_TIMEOUT 60
-#define MQTT_PUBLISH_QOS 0
-#define MQTT_PUBLISH_RETAIN false
+#define MQTT_PUBLISH_QOS     0
+#define MQTT_PUBLISH_RETAIN  false
 #include "include/mqtt_linux.h"
 
 #define CONFIG_MAX_ENTRIES 48
@@ -35,26 +35,26 @@
 // -----------------------------------------------------------------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
-#define CONFIG_FILE_DEFAULT "connmon.cfg"
+#define CONFIG_FILE_DEFAULT               "connmon.cfg"
 
-#define CLOUDFLARE_CHECK_PERIOD_DEFAULT 0
-#define UPNP_CHECK_PERIOD_DEFAULT 0
+#define CLOUDFLARE_CHECK_PERIOD_DEFAULT   0
+#define UPNP_CHECK_PERIOD_DEFAULT         0
 #define CONNECTIVITY_CHECK_PERIOD_DEFAULT 60
-#define HEARTBEAT_PERIOD_DEFAULT 60
+#define HEARTBEAT_PERIOD_DEFAULT          60
 
-#define MQTT_SERVER_DEFAULT ""
-#define MQTT_CLIENT_DEFAULT "connmon"
-#define MQTT_TOPIC_PREFIX_DEFAULT "system/connection"
+#define MQTT_SERVER_DEFAULT               ""
+#define MQTT_CLIENT_DEFAULT               "connmon"
+#define MQTT_TOPIC_PREFIX_DEFAULT         "system/connection"
 
-#define MAX_UPNP_MAPPINGS 10
+#define MAX_UPNP_MAPPINGS                 10
 
-#define IP_ADDRESS_URL "https://api.ipify.org"
+#define IP_ADDRESS_URL                    "https://api.ipify.org"
 
 // -----------------------------------------------------------------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
-#define PRINTF_ERROR printf_stderr
-#define PRINTF_INFO printf_stdout
+#define PRINTF_ERROR                      printf_stderr
+#define PRINTF_INFO                       printf_stdout
 
 void printf_stdout(const char *format, ...) {
     va_list args;
@@ -153,7 +153,9 @@ char hostname[256];
 // -----------------------------------------------------------------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
-static bool get_public_ip(char *string, size_t length) { return http_get(IP_ADDRESS_URL, string, length); }
+static bool get_public_ip(char *string, size_t length) {
+    return http_get(IP_ADDRESS_URL, string, length);
+}
 
 static bool get_local_ip(char *string, size_t length) {
     struct ifaddrs *ifaddr, *ifa;
@@ -208,9 +210,7 @@ static bool cloudflare_update(char *status_message, size_t status_size) {
     }
 
     json_object *zone_result_obj, *zone_name_obj;
-    const char *zone_name = (json_object_object_get_ex(zone_json, "result", &zone_result_obj) && json_object_object_get_ex(zone_result_obj, "name", &zone_name_obj))
-                                ? json_object_get_string(zone_name_obj)
-                                : NULL;
+    const char *zone_name = (json_object_object_get_ex(zone_json, "result", &zone_result_obj) && json_object_object_get_ex(zone_result_obj, "name", &zone_name_obj)) ? json_object_get_string(zone_name_obj) : NULL;
     if (!zone_name) {
         snprintf(status_message, status_size, "could not get zone name");
         json_object_put(zone_json);
@@ -290,9 +290,9 @@ static bool cloudflare_update(char *status_message, size_t status_size) {
     char endpoint[256];
     snprintf(endpoint, sizeof(endpoint), "/dns_records/%s", record_id);
 
-    bool success            = false;
+    bool success = false;
     const char *update_data = json_object_to_json_string(update_json);
-    char *update_response   = cloudflare_api_request(endpoint, "PUT", update_data);
+    char *update_response = cloudflare_api_request(endpoint, "PUT", update_data);
     json_object_put(update_json);
     json_object_put(records_json);
     free(records_response);
@@ -318,8 +318,7 @@ static bool cloudflare_update(char *status_message, size_t status_size) {
 #include <miniupnpc/upnpcommands.h>
 #include <miniupnpc/upnperrors.h>
 
-static bool upnp_update_single(const upnp_mapping_t *mapping, struct UPNPUrls *urls, struct IGDdatas *data, const char *local_ip, const char *externalIPAddress,
-                               char *status_message, size_t status_size) {
+static bool upnp_update_single(const upnp_mapping_t *mapping, struct UPNPUrls *urls, struct IGDdatas *data, const char *local_ip, const char *externalIPAddress, char *status_message, size_t status_size) {
 
     char intClient[64] = "", intPort[16] = "", desc[256] = "", enabled[16] = "", duration[16] = "", extPort[16];
     snprintf(extPort, sizeof(extPort), "%d", mapping->port_external);
@@ -329,15 +328,14 @@ static bool upnp_update_single(const upnp_mapping_t *mapping, struct UPNPUrls *u
     for (char *p = protocol_upper; *p; p++)
         *p = (char)toupper(*p);
 
-    int result           = UPNP_GetSpecificPortMappingEntry(urls->controlURL, data->first.servicetype, extPort, protocol_upper, NULL, intClient, intPort, desc, enabled, duration);
-    bool mapping_exists  = (result == UPNPCOMMAND_SUCCESS);
+    int result = UPNP_GetSpecificPortMappingEntry(urls->controlURL, data->first.servicetype, extPort, protocol_upper, NULL, intClient, intPort, desc, enabled, duration);
+    bool mapping_exists = (result == UPNPCOMMAND_SUCCESS);
     bool mapping_correct = false;
     if (mapping_exists)
         if (strcmp(intClient, local_ip) == 0 && atoi(intPort) == mapping->port_internal && strstr(desc, mapping->service) != NULL)
             mapping_correct = true;
     if (mapping_correct) {
-        snprintf(status_message, status_size, "'%s' exists %s:%d->%s:%d %s", mapping->service, local_ip, mapping->port_internal, externalIPAddress, mapping->port_external,
-                 mapping->protocol);
+        snprintf(status_message, status_size, "'%s' exists %s:%d->%s:%d %s", mapping->service, local_ip, mapping->port_internal, externalIPAddress, mapping->port_external, mapping->protocol);
         return true;
     }
     if (mapping_exists)
@@ -352,8 +350,8 @@ static bool upnp_update_single(const upnp_mapping_t *mapping, struct UPNPUrls *u
         result = UPNP_AddPortMapping(urls->controlURL, data->first.servicetype, extPort, intPortStr, local_ip, mapping->service, protocol_upper, NULL, "0");
 
     bool success = (result == UPNPCOMMAND_SUCCESS);
-    snprintf(status_message, status_size, "'%s' creation %s %s:%d->%s:%d %s%s%s", mapping->service, success ? "succeeded" : "failed", local_ip, mapping->port_internal,
-             externalIPAddress, mapping->port_external, mapping->protocol, success ? "" : ": ", success ? "" : strupnperror(result));
+    snprintf(status_message, status_size, "'%s' creation %s %s:%d->%s:%d %s%s%s", mapping->service, success ? "succeeded" : "failed", local_ip, mapping->port_internal, externalIPAddress, mapping->port_external, mapping->protocol,
+             success ? "" : ": ", success ? "" : strupnperror(result));
 
     return success;
 }
@@ -378,8 +376,8 @@ static bool upnp_update(char *status_message, size_t status_size) {
 
     struct UPNPUrls urls;
     struct IGDdatas data;
-    char lanaddr[64]        = "";
-    int error               = 0;
+    char lanaddr[64] = "";
+    int error = 0;
     struct UPNPDev *devlist = upnpDiscover(2000, NULL, NULL, 0, 0, 2, &error);
     if (!devlist) {
         snprintf(status_message, status_size, "no UPnP devices found");
@@ -399,9 +397,9 @@ static bool upnp_update(char *status_message, size_t status_size) {
     char externalIPAddress[64] = "";
     UPNP_GetExternalIPAddress(urls.controlURL, data.first.servicetype, externalIPAddress);
 
-    int success_count        = 0;
+    int success_count = 0;
     char overall_status[512] = "";
-    int overall_offset       = 0;
+    int overall_offset = 0;
 
     for (int i = 0; i < upnp_config.count; i++) {
         char individual_status[256] = "";
@@ -513,16 +511,16 @@ bool config_load_upnp_mappings(void) {
 
     upnp_config.count = 0;
 
-    const char *service  = config_get_string("upnp-service", "");
-    int port_external    = config_get_integer("upnp-port-external", 0);
-    int port_internal    = config_get_integer("upnp-port-internal", 0);
+    const char *service = config_get_string("upnp-service", "");
+    int port_external = config_get_integer("upnp-port-external", 0);
+    int port_internal = config_get_integer("upnp-port-internal", 0);
     const char *protocol = config_get_string("upnp-protocol", "tcp");
     if (strlen(service) > 0 && port_external > 0 && port_internal > 0) {
-        upnp_config.mappings[0].service       = service;
+        upnp_config.mappings[0].service = service;
         upnp_config.mappings[0].port_external = port_external;
         upnp_config.mappings[0].port_internal = port_internal;
-        upnp_config.mappings[0].protocol      = protocol;
-        upnp_config.count                     = 1;
+        upnp_config.mappings[0].protocol = protocol;
+        upnp_config.count = 1;
     }
     for (int i = 1; i <= MAX_UPNP_MAPPINGS; i++) {
         char key[64];
@@ -536,10 +534,10 @@ bool config_load_upnp_mappings(void) {
         const char *idx_protocol = config_get_string(key, "tcp");
         if (strlen(idx_service) > 0 && idx_port_external > 0 && idx_port_internal > 0) {
             if (upnp_config.count < MAX_UPNP_MAPPINGS) {
-                upnp_config.mappings[upnp_config.count].service       = idx_service;
+                upnp_config.mappings[upnp_config.count].service = idx_service;
                 upnp_config.mappings[upnp_config.count].port_external = idx_port_external;
                 upnp_config.mappings[upnp_config.count].port_internal = idx_port_internal;
-                upnp_config.mappings[upnp_config.count].protocol      = idx_protocol;
+                upnp_config.mappings[upnp_config.count].protocol = idx_protocol;
                 upnp_config.count++;
             }
         } else if (strlen(idx_service) > 0 || idx_port_external > 0 || idx_port_internal > 0) {
@@ -554,16 +552,15 @@ bool config_load_settings(const int argc, const char *argv[]) {
     if (!config_load(CONFIG_FILE_DEFAULT, argc, argv, config_options))
         return false;
 
-    timing_config.cloudflare_check_period   = config_get_integer("cloudflare-check-period", CLOUDFLARE_CHECK_PERIOD_DEFAULT);
-    timing_config.upnp_check_period         = config_get_integer("upnp-check-period", UPNP_CHECK_PERIOD_DEFAULT);
+    timing_config.cloudflare_check_period = config_get_integer("cloudflare-check-period", CLOUDFLARE_CHECK_PERIOD_DEFAULT);
+    timing_config.upnp_check_period = config_get_integer("upnp-check-period", UPNP_CHECK_PERIOD_DEFAULT);
     timing_config.connectivity_check_period = config_get_integer("connectivity-check-period", CONNECTIVITY_CHECK_PERIOD_DEFAULT);
-    timing_config.heartbeat_period          = config_get_integer("heartbeat-period", HEARTBEAT_PERIOD_DEFAULT);
+    timing_config.heartbeat_period = config_get_integer("heartbeat-period", HEARTBEAT_PERIOD_DEFAULT);
 
     cloudflare_config.dns_name = config_get_string("cloudflare-dns-name", "");
-    cloudflare_config.zone_id  = config_get_string("cloudflare-zone-id", "");
-    cloudflare_config.token    = config_get_string("cloudflare-token", "");
-    cloudflare_config.enabled =
-        timing_config.cloudflare_check_period > 0 && (strlen(cloudflare_config.dns_name) > 0 && strlen(cloudflare_config.zone_id) > 0 && strlen(cloudflare_config.token) > 0);
+    cloudflare_config.zone_id = config_get_string("cloudflare-zone-id", "");
+    cloudflare_config.token = config_get_string("cloudflare-token", "");
+    cloudflare_config.enabled = timing_config.cloudflare_check_period > 0 && (strlen(cloudflare_config.dns_name) > 0 && strlen(cloudflare_config.zone_id) > 0 && strlen(cloudflare_config.token) > 0);
     cloudflare_config.verbose = config_get_bool("cloudflare-verbose", true);
     if (cloudflare_config.enabled)
         printf("cloudflare: '%s' (%d, %s)\n", cloudflare_config.dns_name, timing_config.cloudflare_check_period, cloudflare_config.verbose ? "verbose" : "quiet");
@@ -573,10 +570,10 @@ bool config_load_settings(const int argc, const char *argv[]) {
     upnp_config.verbose = config_get_bool("upnp-verbose", true);
     if (upnp_config.enabled)
         for (int i = 0; i < upnp_config.count; i++)
-            printf("upnp: [%d] '%s' %d->%d %s (%d, %s)\n", i + 1, upnp_config.mappings[i].service, upnp_config.mappings[i].port_internal, upnp_config.mappings[i].port_external,
-                   upnp_config.mappings[i].protocol, timing_config.upnp_check_period, upnp_config.verbose ? "verbose" : "quiet");
+            printf("upnp: [%d] '%s' %d->%d %s (%d, %s)\n", i + 1, upnp_config.mappings[i].service, upnp_config.mappings[i].port_internal, upnp_config.mappings[i].port_external, upnp_config.mappings[i].protocol,
+                   timing_config.upnp_check_period, upnp_config.verbose ? "verbose" : "quiet");
 
-    connectivity_config.url     = config_get_string("connectivity-url", "");
+    connectivity_config.url = config_get_string("connectivity-url", "");
     connectivity_config.enabled = timing_config.connectivity_check_period > 0 && (strlen(connectivity_config.url) > 0);
     connectivity_config.verbose = config_get_bool("connectivity-verbose", true);
     if (connectivity_config.enabled)
@@ -589,9 +586,9 @@ bool config_load_settings(const int argc, const char *argv[]) {
 
     mqtt_config.server = config_get_string("mqtt-server", MQTT_SERVER_DEFAULT);
     mqtt_config.client = config_get_string("mqtt-client", MQTT_CLIENT_DEFAULT);
-    mqtt_config.debug  = false;
-    mqtt_topic_prefix  = config_get_string("mqtt-topic-prefix", MQTT_TOPIC_PREFIX_DEFAULT);
-    mqtt_enabled       = mqtt_config.server != NULL && (strlen(mqtt_config.server) > 0);
+    mqtt_config.debug = false;
+    mqtt_topic_prefix = config_get_string("mqtt-topic-prefix", MQTT_TOPIC_PREFIX_DEFAULT);
+    mqtt_enabled = mqtt_config.server != NULL && (strlen(mqtt_config.server) > 0);
 
     if (gethostname(hostname, sizeof(hostname)) != 0)
         strcpy(hostname, "unknown");

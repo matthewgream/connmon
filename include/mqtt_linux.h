@@ -33,19 +33,19 @@ typedef struct {
 #define MQTT_SUBSCRIBE_QOS 0
 #endif
 
-bool mosq_debug                        = false;
-struct mosquitto *mosq                 = NULL;
+bool mosq_debug = false;
+struct mosquitto *mosq = NULL;
 mqtt_callback_data *mosq_callback_data = NULL;
 
 bool mqtt_parse(const char *string, char *host, const int length, int *port, bool *ssl) {
     host[0] = '\0';
-    *port   = 1883;
-    *ssl    = false;
+    *port = 1883;
+    *ssl = false;
     if (strncmp(string, "mqtt://", 7) == 0) {
         strncpy(host, string + 7, (size_t)(length - 1));
     } else if (strncmp(string, "mqtts://", 8) == 0) {
         strncpy(host, string + 8, (size_t)(length - 1));
-        *ssl  = true;
+        *ssl = true;
         *port = 8883;
     } else {
         strcpy(host, string);
@@ -53,7 +53,7 @@ bool mqtt_parse(const char *string, char *host, const int length, int *port, boo
     char *port_str = strchr(host, ':');
     if (port_str) {
         *port_str = '\0'; // Terminate host string at colon
-        *port     = atoi(port_str + 1);
+        *port = atoi(port_str + 1);
     }
     return true;
 }
@@ -142,8 +142,7 @@ void mqtt_message_callback(struct mosquitto *m, void *obj, const struct mosquitt
         callback_data->message_processor(message->topic);
 }
 
-void mqtt_subscribe_callback(struct mosquitto *m, void *obj __attribute__((unused)), int mid, int qos_count __attribute__((unused)),
-                             const int *qos_granted __attribute__((unused))) {
+void mqtt_subscribe_callback(struct mosquitto *m, void *obj __attribute__((unused)), int mid, int qos_count __attribute__((unused)), const int *qos_granted __attribute__((unused))) {
     if (m != mosq)
         return;
     if (mosq_debug)

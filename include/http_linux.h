@@ -15,7 +15,7 @@ typedef struct {
 
 static size_t curl_write_callback_static(void *data, size_t size, size_t nmemb, void *userp) {
     curl_buffer_t *buffer = (curl_buffer_t *)userp;
-    size_t length         = size * nmemb;
+    size_t length = size * nmemb;
     if (length > ((buffer->size - 1) - buffer->length))
         length = ((buffer->size - 1) - buffer->length);
     memcpy(&(buffer->data[buffer->length]), data, length);
@@ -26,8 +26,8 @@ static size_t curl_write_callback_static(void *data, size_t size, size_t nmemb, 
 
 static size_t curl_write_callback_dynamic(void *data, size_t size, size_t nmemb, void *userp) {
     curl_buffer_t *buffer = (curl_buffer_t *)userp;
-    size_t length         = size * nmemb;
-    char *ptr             = realloc(buffer->data, buffer->size + length + 1);
+    size_t length = size * nmemb;
+    char *ptr = realloc(buffer->data, buffer->size + length + 1);
     if (!ptr)
         return 0;
     buffer->size += length + 1;
@@ -117,9 +117,9 @@ bool http_head(const char *url, char *status, size_t status_size) {
 
     CURLcode res = curl_easy_perform(curl);
 
-    long response_code    = 0;
+    long response_code = 0;
     curl_off_t total_time = 0;
-    long header_size      = 0;
+    long header_size = 0;
 
     if (res == CURLE_OK) {
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);

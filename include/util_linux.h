@@ -9,7 +9,9 @@
 // -----------------------------------------------------------------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
-uint32_t __unpack_h(const uint8_t *x) { return (x[0] << 8) | x[1]; }
+uint32_t __unpack_h(const uint8_t *x) {
+    return (x[0] << 8) | x[1];
+}
 float __unpack_f(const uint8_t *x) {
     union {
         uint32_t i;
@@ -28,7 +30,7 @@ time_t intervalable(const time_t interval, time_t *last, bool on_first) {
     }
     if ((now - *last) > interval) {
         const time_t diff = now - *last;
-        *last             = now;
+        *last = now;
         return diff;
     }
     return 0;

@@ -26,7 +26,7 @@ void __config_set_value(const char *key, const char *value) {
             return;
         }
     if (config_entry_count < CONFIG_MAX_ENTRIES) {
-        config_entries[config_entry_count].key   = strdup(key);
+        config_entries[config_entry_count].key = strdup(key);
         config_entries[config_entry_count].value = strdup(value);
         config_entry_count++;
     } else
@@ -88,8 +88,8 @@ void __config_load_file(const char *filename) {
             continue;
         char *equals = strchr(line, '=');
         if (equals) {
-            *equals     = '\0';
-            char *key   = line;
+            *equals = '\0';
+            char *key = line;
             char *value = equals + 1;
             while (*key && isspace(*key))
                 key++;
@@ -112,7 +112,7 @@ void __config_load_file(const char *filename) {
 bool config_load(const char *config_file, const int argc, const char *argv[], const struct option *options_long) {
     int c;
     int option_index = 0;
-    optind           = 0;
+    optind = 0;
     while ((c = getopt_long(argc, (char **)argv, "", options_long, &option_index)) != -1) {
         if (c == 0)
             if (strcmp(options_long[option_index].name, "config") == 0) {
