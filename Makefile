@@ -35,7 +35,7 @@ test: $(TARGET)
 	./$(TARGET) --config $(CFG_SRC)
 latency:
 	journalctl -u $(TARGET) | analysis/latency.js
-DEV_PACKAGES=libmosquitto-dev libcurl4-openssl-dev libjson-c-dev libminiupnpc-dev
+DEV_PACKAGES=libmosquitto-dev libjson-c-dev libcurl4-openssl-dev libminiupnpc-dev
 DEV_PACKAGES_ARMHF=$(addsuffix :armhf,$(DEV_PACKAGES))
 install-dev:
 	apt install -y $(DEV_PACKAGES)
