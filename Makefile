@@ -30,7 +30,7 @@ all: $(TARGET)
 clean:
 	rm -f $(TARGET) $(TARGET).armhf
 format:
-	clang-format -i $(TARGET).c include/*.h
+	clang-format-19 -i $(TARGET).c include/*.h
 test: $(TARGET)
 	./$(TARGET) --config $(CFG_SRC)
 latency:
