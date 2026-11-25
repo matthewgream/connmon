@@ -15,7 +15,7 @@ structure and config convention:
 
 On independent timers it runs up to three checks and emits an event for each:
 
-- **`connectivity`** — HTTP GET a URL and report success + latency.
+- **`connectivity`** — HTTP HEAD a URL and report success + latency.
 - **`upnp`** — ensure the configured inbound port-forward mappings exist on the
   local IGD/router (creates them if missing), so remote SSH/HTTP keeps working.
 - **`cloudflare`** — dynamic DNS: keep a Cloudflare DNS record pointed at the
@@ -40,8 +40,9 @@ beyond an MQTT broker (UPnP/HTTP/Cloudflare are done over the network).
 
 **Host-specific config convention:** the Makefile installs
 `connmon.<hostname>.cfg` if it exists, otherwise falls back to the generic
-`connmon.cfg`. Commit one config per deployment host (e.g. `connmon.bastu.cfg`)
-alongside the documented default `connmon.cfg`.
+`connmon.cfg`. Keep one config per deployment host (e.g. `connmon.bastu.cfg`)
+beside the documented default `connmon.cfg`; they are git-ignored, since they
+hold secrets (the Cloudflare token).
 
     make install-dev          # native:  binary -> /usr/local/bin/connmon
                               #          config -> /etc/default/connmon
@@ -63,7 +64,7 @@ command-line flag. `--config <file>` selects the file (default `connmon.cfg`).
 |---|---|---|
 | `mqtt-server` | `mqtt://localhost` | broker URL |
 | `mqtt-client` | `connmon` | client id |
-| `mqtt-topic-prefix` | `system/connection` | base topic |
+| `mqtt-topic-prefix` | `system/connect` | base topic |
 | `mqtt-tls-insecure` | `false` | skip TLS cert verification |
 | `mqtt-reconnect-delay` | `5` | reconnect backoff start (s) |
 | `mqtt-reconnect-delay-max` | `60` | reconnect backoff cap (s) |
@@ -92,7 +93,8 @@ A check is enabled only when its `*-check-period` (and required fields) are set;
 
 Publishes each event to **`<mqtt-topic-prefix>/<hostname>`**. Every message is a
 JSON object with `timestamp`, `hostname`, `event`, `success`, `message`, plus
-event-specific fields.
+event-specific fields. `connectivity` carries `url`, and `http_code`,
+`latency_ms` and `bytes` on a response, or `error` without one.
 
 ```
 $ mosquitto_sub -t 'system/connect/#'
@@ -100,7 +102,8 @@ $ mosquitto_sub -t 'system/connect/#'
 { "timestamp":1761738938, "hostname":"bastu", "event":"upnp", "success":true,
   "message":"1/1 succeeded - [1]: 'bastu-sshd-inbound' exists 192.168.0.226:22->…:9091 tcp" }
 { "timestamp":1761738938, "hostname":"bastu", "event":"connectivity", "success":true,
-  "message":"connection to 'http://www.google.com' succeeded (HTTP 200, 151.497ms, 677 bytes)" }
+  "message":"connection to 'http://www.google.com' succeeded (HTTP 200, 151.497ms, 677 bytes)",
+  "url":"http://www.google.com", "http_code":200, "latency_ms":151.497, "bytes":677 }
 { "timestamp":1761738999, "hostname":"bastu", "event":"heartbeat", "success":true,
   "message":"daemon active (1)", "upnp_enabled":true, "upnp_mappings":1 }
 ```

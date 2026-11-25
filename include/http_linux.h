@@ -102,7 +102,14 @@ char *http_request(const char *url, const char *method, const char **headers, si
 // -----------------------------------------------------------------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
-bool http_head(const char *url, char *status, size_t status_size) {
+// the outcome of http_head, for publishing as fields: code 0 when there was no response
+typedef struct {
+    long code;
+    double ms;
+    long bytes;
+} http_head_result_t;
+
+bool http_head(const char *url, char *status, size_t status_size, http_head_result_t *result) {
 
     CURL *curl = curl_easy_init();
     if (!curl) {
@@ -129,6 +136,11 @@ bool http_head(const char *url, char *status, size_t status_size) {
 
     curl_easy_cleanup(curl);
 
+    if (result != NULL) {
+        result->code = response_code;
+        result->ms = (double)total_time / 1000.0;
+        result->bytes = header_size;
+    }
     bool success = (res == CURLE_OK && response_code > 0);
     if (res != CURLE_OK)
         snprintf(status, status_size, "%s", curl_easy_strerror(res));

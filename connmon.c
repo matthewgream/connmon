@@ -44,7 +44,7 @@
 
 #define MQTT_SERVER_DEFAULT               ""
 #define MQTT_CLIENT_DEFAULT               "connmon"
-#define MQTT_TOPIC_PREFIX_DEFAULT         "system/connection"
+#define MQTT_TOPIC_PREFIX_DEFAULT         "system/connect"
 
 #define MAX_UPNP_MAPPINGS                 10
 
@@ -421,10 +421,22 @@ static bool upnp_update(char *status_message, size_t status_size) {
 // -----------------------------------------------------------------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
-static bool check_connectivity(char *status_message, size_t status_size) {
+// the outcome as fields as well as text, so the latency can be mined without parsing the message:
+// url, http_code and latency_ms (ms, to the microsecond) and bytes on a response, error without one
+static bool check_connectivity(char *status_message, size_t status_size, json_object *fields) {
     char details[256];
-    bool success = http_head(connectivity_config.url, details, sizeof(details));
+    http_head_result_t result = { 0 };
+    bool success = http_head(connectivity_config.url, details, sizeof(details), &result);
     snprintf(status_message, status_size, "connection to '%s' %s (%s)", connectivity_config.url, success ? "succeeded" : "failed", details);
+    json_object_object_add(fields, "url", json_object_new_string(connectivity_config.url));
+    if (success) {
+        char ms[32];
+        snprintf(ms, sizeof(ms), "%.3f", result.ms);
+        json_object_object_add(fields, "http_code", json_object_new_int((int)result.code));
+        json_object_object_add(fields, "latency_ms", json_object_new_double_s(result.ms, ms));
+        json_object_object_add(fields, "bytes", json_object_new_int64(result.bytes));
+    } else
+        json_object_object_add(fields, "error", json_object_new_string(details));
     return success;
 }
 
@@ -440,7 +452,8 @@ static bool do_heartbeat(char *status_message, size_t status_size) {
 // -----------------------------------------------------------------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------
 
-static void publish_status(const char *event_type, bool success, const char *message, bool verbose) {
+// fields, if any, are added to the message (and released here)
+static void publish_status(const char *event_type, bool success, const char *message, bool verbose, json_object *fields) {
 
     if (verbose)
         printf("%s: %s\n", event_type, message);
@@ -462,12 +475,17 @@ static void publish_status(const char *event_type, bool success, const char *mes
             json_object_object_add(json, "upnp_enabled", json_object_new_boolean(upnp_config.enabled));
             json_object_object_add(json, "upnp_mappings", json_object_new_int(upnp_config.count));
         }
+        if (fields != NULL) {
+            json_object_object_foreach(fields, key, value) json_object_object_add(json, key, json_object_get(value));
+        }
 
         const char *json_str = json_object_to_json_string(json);
         mqtt_send(topic, json_str, (int)strlen(json_str));
 
         json_object_put(json);
     }
+    if (fields != NULL)
+        json_object_put(fields);
 }
 
 // -----------------------------------------------------------------------------------------------------------------------------------------
@@ -489,16 +507,18 @@ void process_loop(void) {
     while (running) {
 
         if (running && cloudflare_config.enabled && intervalable(timing_config.cloudflare_check_period, &last_cloudflare, true))
-            publish_status("cloudflare", cloudflare_update(status_message, sizeof(status_message)), status_message, cloudflare_config.verbose);
+            publish_status("cloudflare", cloudflare_update(status_message, sizeof(status_message)), status_message, cloudflare_config.verbose, NULL);
 
         if (running && upnp_config.enabled && intervalable(timing_config.upnp_check_period, &last_upnp, true))
-            publish_status("upnp", upnp_update(status_message, sizeof(status_message)), status_message, upnp_config.verbose);
+            publish_status("upnp", upnp_update(status_message, sizeof(status_message)), status_message, upnp_config.verbose, NULL);
 
-        if (running && connectivity_config.enabled && intervalable(timing_config.connectivity_check_period, &last_connectivity, true))
-            publish_status("connectivity", check_connectivity(status_message, sizeof(status_message)), status_message, connectivity_config.verbose);
+        if (running && connectivity_config.enabled && intervalable(timing_config.connectivity_check_period, &last_connectivity, true)) {
+            json_object *fields = json_object_new_object();
+            publish_status("connectivity", check_connectivity(status_message, sizeof(status_message), fields), status_message, connectivity_config.verbose, fields);
+        }
 
         if (running && intervalable(timing_config.heartbeat_period, &last_heartbeat, false))
-            publish_status("heartbeat", do_heartbeat(status_message, sizeof(status_message)), status_message, heartbeat_config.verbose);
+            publish_status("heartbeat", do_heartbeat(status_message, sizeof(status_message)), status_message, heartbeat_config.verbose, NULL);
 
         sleep(1);
     }
@@ -621,9 +641,9 @@ int main(int argc, const char **argv) {
     }
 
     http_begin();
-    publish_status("startup", true, "daemon started", true);
+    publish_status("startup", true, "daemon started", true, NULL);
     process_loop();
-    publish_status("shutdown", true, "daemon stopped", true);
+    publish_status("shutdown", true, "daemon stopped", true, NULL);
     http_end();
 
     if (mqtt_enabled)
