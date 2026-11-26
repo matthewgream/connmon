@@ -190,6 +190,15 @@ static char *cloudflare_api_request(const char *endpoint, const char *method, co
     return http_request(url, method, headers, sizeof(headers) / sizeof(const char *), data);
 }
 
+// what Cloudflare said when it did not answer with a result: {"success":false,"errors":[{"code":...,"message":"..."}],"result":null}
+static const char *cloudflare_error(json_object *response) {
+    json_object *errors, *first, *message;
+    if (json_object_object_get_ex(response, "errors", &errors) && json_object_is_type(errors, json_type_array) && json_object_array_length(errors) > 0 && (first = json_object_array_get_idx(errors, 0)) != NULL &&
+        json_object_object_get_ex(first, "message", &message) && json_object_get_string(message) != NULL)
+        return json_object_get_string(message);
+    return "no result, and no error given";
+}
+
 static bool cloudflare_update(char *status_message, size_t status_size) {
 
     if (!cloudflare_config.enabled) {
@@ -212,7 +221,7 @@ static bool cloudflare_update(char *status_message, size_t status_size) {
     json_object *zone_result_obj, *zone_name_obj;
     const char *zone_name = (json_object_object_get_ex(zone_json, "result", &zone_result_obj) && json_object_object_get_ex(zone_result_obj, "name", &zone_name_obj)) ? json_object_get_string(zone_name_obj) : NULL;
     if (!zone_name) {
-        snprintf(status_message, status_size, "could not get zone name");
+        snprintf(status_message, status_size, "could not get zone name (%s)", cloudflare_error(zone_json));
         json_object_put(zone_json);
         free(zone_response);
         return false;
@@ -241,24 +250,28 @@ static bool cloudflare_update(char *status_message, size_t status_size) {
 
     const char *record_id = NULL, *record_ip = NULL;
     json_object *records_result;
-    if (json_object_object_get_ex(records_json, "result", &records_result)) {
-        for (size_t i = 0; i < json_object_array_length(records_result); i++) {
-            json_object *record = json_object_array_get_idx(records_result, i);
-            json_object *name_obj;
-            if (json_object_object_get_ex(record, "name", &name_obj)) {
-                const char *name = json_object_get_string(name_obj);
-                if (strcmp(name, full_dns_name) == 0) {
-                    json_object *id_obj, *content_obj;
-                    if (json_object_object_get_ex(record, "id", &id_obj))
-                        record_id = json_object_get_string(id_obj);
-                    if (json_object_object_get_ex(record, "content", &content_obj))
-                        record_ip = json_object_get_string(content_obj);
-                    break;
-                }
+    if (!json_object_object_get_ex(records_json, "result", &records_result) || !json_object_is_type(records_result, json_type_array)) {
+        snprintf(status_message, status_size, "failed to read DNS records (%s)", cloudflare_error(records_json));
+        json_object_put(records_json);
+        free(records_response);
+        return false;
+    }
+    for (size_t i = 0; i < json_object_array_length(records_result); i++) {
+        json_object *record = json_object_array_get_idx(records_result, i);
+        json_object *name_obj;
+        if (json_object_object_get_ex(record, "name", &name_obj)) {
+            const char *name = json_object_get_string(name_obj);
+            if (name != NULL && strcmp(name, full_dns_name) == 0) {
+                json_object *id_obj, *content_obj;
+                if (json_object_object_get_ex(record, "id", &id_obj))
+                    record_id = json_object_get_string(id_obj);
+                if (json_object_object_get_ex(record, "content", &content_obj))
+                    record_ip = json_object_get_string(content_obj);
+                break;
             }
         }
     }
-    if (!record_id) {
+    if (!record_id || !record_ip) {
         snprintf(status_message, status_size, "no matching DNS record found for %s", full_dns_name);
         json_object_put(records_json);
         free(records_response);

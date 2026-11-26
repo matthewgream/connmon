@@ -107,6 +107,11 @@ void __config_load_file(const char *filename) {
     fclose(file);
 }
 
+// a token, password, secret or key is shown in the config line only as set: that line goes to the journal
+static bool __config_is_secret(const char *name) {
+    return strstr(name, "token") != NULL || strstr(name, "pass") != NULL || strstr(name, "secret") != NULL || strstr(name, "key") != NULL;
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 bool config_load(const char *config_file, const int argc, const char *argv[], const struct option *options_long) {
@@ -131,7 +136,7 @@ bool config_load(const char *config_file, const int argc, const char *argv[], co
     for (int i = 1; options_long[i].name != NULL; i++) {
         const char *value = config_get_string(options_long[i].name, NULL);
         if (value != NULL)
-            printf(", %s='%s'", options_long[i].name, value);
+            printf(", %s='%s'", options_long[i].name, __config_is_secret(options_long[i].name) && *value ? "(set)" : value);
     }
     printf("\n");
     return true;
